@@ -1,0 +1,42 @@
+name: Atualizar Dashboard DIT SSP25
+
+on:
+  schedule:
+    # Roda todo dia util as 09:00 BRT (12:00 UTC) e as 12:00 BRT (15:00 UTC)
+    - cron: '0 12 * * 1-5'
+    - cron: '0 15 * * 1-5'
+  workflow_dispatch:
+    # Permite execucao manual pelo GitHub Actions
+
+jobs:
+  update-dashboard:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout do repositorio
+        uses: actions/checkout@v4
+
+      - name: Configurar Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Instalar dependencias
+        run: |
+          pip install tableauserverclient requests
+
+      - name: Executar script de atualizacao
+        env:
+          TABLEAU_PAT_NAME: ${{ secrets.TABLEAU_PAT_NAME }}
+          TABLEAU_PAT_SECRET: ${{ secrets.TABLEAU_PAT_SECRET }}
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: python update_dashboard.py
+
+      - name: Notificar sucesso
+        if: success()
+        run: echo "Dashboard atualizado com sucesso!"
+
+      - name: Notificar falha
+        if: failure()
+        run: echo "ERRO na atualizacao do dashboard!"
