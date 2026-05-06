@@ -24,14 +24,14 @@ jobs:
 
       - name: Instalar dependencias
         run: |
-          pip install requests autopep8
+          pip install requests
 
       - name: Executar script de atualizacao
         env:
           TABLEAU_PAT_NAME: ${{ secrets.TABLEAU_PAT_NAME }}
           TABLEAU_PAT_SECRET: ${{ secrets.TABLEAU_PAT_SECRET }}
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-        run: autopep8 --in-place update_dashboard.py && python update_dashboard.py
+        run: python update_dashboard.py
 
       - name: Notificar sucesso
         if: success()
