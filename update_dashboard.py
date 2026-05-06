@@ -51,7 +51,7 @@ def get_view_data(token, site_id, view_id, ssp_filter=None):
                 url = f"{TABLEAU_SERVER}/api/3.21/sites/{site_id}/views/{view_id}/data?maxRows=5000"
                 if ssp_filter:
                                     url += f"&vf_SHP_SVC_ID={ssp_filter}"
-                                r = requests.get(url, headers={"X-Tableau-Auth": token})
+    r = requests.get(url, headers={"X-Tableau-Auth": token})
     if r.status_code != 200:
                         print(f"  WARN view {view_id} filter {ssp_filter}: HTTP {r.status_code}")
                         return []
