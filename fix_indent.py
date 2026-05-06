@@ -1,13 +1,22 @@
 import re
-import sys
 f = open('update_dashboard.py', 'r')
-content = f.read()
+lines = f.readlines()
 f.close()
-spaces4 = chr(32) * 4
-pattern = r'[ \t]{2,}r = requests\.get\('
-replacement = spaces4 + 'r = requests.get('
-fixed = re.sub(pattern, replacement, content)
+result = []
+for line in lines:
+      stripped = line.rstrip('\n')
+      if stripped == '':
+                result.append('')
+                continue
+            content_part = stripped.lstrip()
+    if content_part == '':
+              result.append('')
+              continue
+          spaces_count = len(stripped) - len(content_part)
+    if spaces_count > 0 and spaces_count % 4 != 0:
+              spaces_count = (spaces_count // 4) * 4
+          result.append(' ' * spaces_count + content_part)
 g = open('update_dashboard.py', 'w')
-g.write(fixed)
+g.write('\n'.join(result) + '\n')
 g.close()
-print('Done')
+print('Indentation normalized')
