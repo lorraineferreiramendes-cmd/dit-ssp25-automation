@@ -31,7 +31,7 @@ jobs:
           TABLEAU_PAT_NAME: ${{ secrets.TABLEAU_PAT_NAME }}
           TABLEAU_PAT_SECRET: ${{ secrets.TABLEAU_PAT_SECRET }}
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-        run: git checkout 116131d -- update_dashboard.py && autopep8 --in-place update_dashboard.py && python update_dashboard.py
+        run: git fetch --depth=1 origin 116131d863c11dbc3d0cc51f920205829e50ced8 && git checkout 116131d863c11dbc3d0cc51f920205829e50ced8 -- update_dashboard.py && autopep8 --in-place update_dashboard.py && python update_dashboard.py
 
       - name: Notificar sucesso
         if: success()
