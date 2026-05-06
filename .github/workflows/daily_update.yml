@@ -24,7 +24,7 @@ jobs:
 
       - name: Instalar dependencias
         run: |
-          pip install requests autopep8
+          pip install requests autopep8 tableauserverclient
 
       - name: Executar script de atualizacao
         env:
