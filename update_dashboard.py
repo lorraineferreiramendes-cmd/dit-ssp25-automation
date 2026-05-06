@@ -5,20 +5,19 @@
 import os, json, hashlib, requests, csv, io
 from datetime import datetime
 
-TABLEAU_SERVER   = "https://us-east-1.online.tableau.com"
-TABLEAU_SITE     = "melishipping"
-TABLEAU_PAT_NAME   = os.environ["TABLEAU_PAT_NAME"]
+TABLEAU_SERVER = "https://us-east-1.online.tableau.com"
+TABLEAU_SITE = "melishipping"
+TABLEAU_PAT_NAME = os.environ["TABLEAU_PAT_NAME"]
 TABLEAU_PAT_SECRET = os.environ["TABLEAU_PAT_SECRET"]
-VERCEL_TOKEN     = os.environ["VERCEL_TOKEN"]
-VERCEL_TEAM_ID   = "team_YU3QjagianFqWT6JYA8kfRJk"
-INDEX_HTML_SHA   = "98c697dcc5a6ed4a1abf03fff6c5380c5bb99ff7"
-INDEX_HTML_SIZE  = 16563
+VERCEL_TOKEN = os.environ["VERCEL_TOKEN"]
+VERCEL_TEAM_ID = "team_YU3QjagianFqWT6JYA8kfRJk"
+INDEX_HTML_SHA = "98c697dcc5a6ed4a1abf03fff6c5380c5bb99ff7"
+INDEX_HTML_SIZE = 16563
 SSPS = ["SSP25", "SSP40", "SSP21", "SSP49"]
 
-# IDs das views publicadas no Tableau Cloud
-VIEW_PREVIA     = "921ab9c2-292e-47c7-b428-4475d6e68f5c"  # Previa Delay LM - tem DIT por SVC
-VIEW_ACIONAVEL  = "daf3db95-71a7-4b14-b7c3-f4c4e68744e1"  # One Page - Acionavel OTR
-VIEW_STATUS     = "617ae9fd-0e77-42ff-8914-fed2071f802c"  # Report - Status Pacote
+VIEW_PREVIA = "921ab9c2-292e-47c7-b428-4475d6e68f5c"
+VIEW_ACIONAVEL = "daf3db95-71a7-4b14-b7c3-f4c4e68744e1"
+VIEW_STATUS = "617ae9fd-0e77-42ff-8914-fed2071f802c"
 
 
 def sha1_of(s):
@@ -72,8 +71,6 @@ except Exception:
 
 def build_base(token, site_id, ssp, now):
         print(f"  Coletando dados para {ssp}...")
-
-    # ---- Previa Delay LM: Total DIT, Delay ----
     rows_previa = get_view_data(token, site_id, VIEW_PREVIA, ssp)
     total_dit = 0
     delay_pct = 0.0
@@ -84,55 +81,37 @@ def build_base(token, site_id, ssp, now):
                                 total_dit = parse_num(mv)
 elif mn == "Previa Delay LM":
             delay_pct = parse_pct(mv)
-
-    # ---- One Page: Acionavel OTR ----
     rows_ac = get_view_data(token, site_id, VIEW_ACIONAVEL, ssp)
     acionavel_otr = 0
-    acionavel_lp  = 0
-    acionavel_utr = 0
     for row in rows_ac:
-                ac  = (row.get("Acionaveis") or "").strip()
-                mn  = (row.get("Measure Names") or "").strip()
-                mv  = row.get("Measure Values") or "0"
-                if mn == "DIT":
-                                if "OTR" in ac:
-                                                    acionavel_otr = parse_num(mv)
-                elif "LP" in ac:
-                                    acionavel_lp  = parse_num(mv)
-elif "UTR" in ac:
-                acionavel_utr = parse_num(mv)
-
-    # ---- Report: Status de Pacotes ----
-    rows_status = get_view_data(token, site_id, VIEW_STATUS, ssp)
-                   backlog_d0  = 0  # Pendente tratativa UTR
-    in_rota     = 0  # Em rota
-    para_desp   = 0  # Para despachar
+                ac = (row.get("Acionaveis") or "").strip()
+                mn = (row.get("Measure Names") or "").strip()
+                mv = row.get("Measure Values") or "0"
+                if mn == "DIT" and "OTR" in ac:
+                                acionavel_otr = parse_num(mv)
+                        rows_status = get_view_data(token, site_id, VIEW_STATUS, ssp)
+    backlog_d0 = 0
+    in_rota = 0
+    para_desp = 0
     for row in rows_status:
-                mn  = (row.get("Measure Names") or "").strip()
-                sp  = (row.get("Status Pacote") or "").strip()
-                mv  = row.get("Measure Values") or "0"
-                if mn == "DIT":
-                                if "UTR" in sp:
-                                                    backlog_d0 = parse_num(mv)
-                elif "rota" in sp.lower():
-                                    in_rota = parse_num(mv)
+                mn = (row.get("Measure Names") or "").strip()
+        sp = (row.get("Status Pacote") or "").strip()
+        mv = row.get("Measure Values") or "0"
+        if mn == "DIT":
+                        if "UTR" in sp:
+                                            backlog_d0 = parse_num(mv)
+        elif "rota" in sp.lower():
+                in_rota = parse_num(mv)
 elif "despachar" in sp.lower():
                 para_desp = parse_num(mv)
-
-    # Backlog D-1 estimado = total - em rota
     backlog_d1 = max(0, total_dit - in_rota)
-
-    # ---- Montar estrutura da base ----
     pct_ac = round(acionavel_otr / total_dit * 100, 1) if total_dit > 0 else 0.0
-
-    # Alert color
     if delay_pct > 2.0:
                 alert = f"Delay {delay_pct:.1f}% - Atencao!"
 elif total_dit == 0:
-            alert = "Sem dados disponiveis"
+        alert = "Sem dados disponiveis"
 else:
-            alert = f"Atualizado em {now.strftime('%d/%m/%Y %H:%M')}"
-
+        alert = f"Atualizado em {now.strftime('%d/%m/%Y %H:%M')}"
     base = {
                 "id": ssp,
                 "regional": "ZN",
@@ -144,13 +123,13 @@ else:
                 "alert": alert,
                 "opsClock": [
                                 {"l": "Em rota", "v": in_rota,
-                                              "p": round(in_rota/total_dit*100,1) if total_dit>0 else 0.0,
-                                              "t": "ok" if in_rota/max(total_dit,1) > 0.4 else "warn"},
+                                              "p": round(in_rota / total_dit * 100, 1) if total_dit > 0 else 0.0,
+                                              "t": "ok" if total_dit > 0 and in_rota / total_dit > 0.4 else "warn"},
                                 {"l": "Pendente UTR", "v": backlog_d0,
-                                              "p": round(backlog_d0/total_dit*100,1) if total_dit>0 else 0.0,
-                                              "t": "bad" if backlog_d0/max(total_dit,1) > 0.3 else "warn"},
+                                              "p": round(backlog_d0 / total_dit * 100, 1) if total_dit > 0 else 0.0,
+                                              "t": "bad" if total_dit > 0 and backlog_d0 / total_dit > 0.3 else "warn"},
                                 {"l": "Para despachar", "v": para_desp,
-                                              "p": round(para_desp/total_dit*100,1) if total_dit>0 else 0.0,
+                                              "p": round(para_desp / total_dit * 100, 1) if total_dit > 0 else 0.0,
                                               "t": "warn"}
                 ],
                 "lh": [],
@@ -165,8 +144,6 @@ else:
                 ],
                 "pontosAtencao": []
     }
-
-    # Pontos de atencao automaticos
     if delay_pct > 2.0:
                 base["pontosAtencao"].append({
                                 "i": "Delay LM", "s": f"{delay_pct:.1f}%",
@@ -177,7 +154,7 @@ else:
                                         "i": "Acionavel OTR", "s": f"{pct_ac:.1f}%",
                                         "a": "Baixo acionavel - verificar routing", "t": "warn"
                         })
-                    if backlog_d0 > total_dit * 0.4 and total_dit > 0:
+                    if total_dit > 0 and backlog_d0 > total_dit * 0.4:
                                 base["pontosAtencao"].append({
                                                 "i": "Backlog UTR D0", "s": str(backlog_d0),
                                                 "a": "Alto backlog pendente UTR", "t": "bad"
@@ -187,22 +164,21 @@ else:
                                                         "i": "Status geral", "s": "Normal",
                                                         "a": "Sem alertas criticos", "t": "ok"
                                         })
-
-    return base
+                                    return base
 
 
 def build_json(token, site_id):
-        now  = datetime.now()
-        data = {"updated": now.strftime("%Y-%m-%dT%H:%M:%S"), "bases": {}}
-        for ssp in SSPS:
-                    data["bases"][ssp] = build_base(token, site_id, ssp, now)
-                return json.dumps(data, ensure_ascii=False, indent=2)
+        now = datetime.now()
+    data = {"updated": now.strftime("%Y-%m-%dT%H:%M:%S"), "bases": {}}
+    for ssp in SSPS:
+                data["bases"][ssp] = build_base(token, site_id, ssp, now)
+            return json.dumps(data, ensure_ascii=False, indent=2)
 
 
-def upload(content, sha1, token_vercel):
+def upload(content, sha1, tok):
         r = requests.post(
             "https://api.vercel.com/v2/files",
-            headers={"Authorization": f"Bearer {token_vercel}",
+            headers={"Authorization": f"Bearer {tok}",
                                       "Content-Type": "application/octet-stream",
                                       "x-vercel-digest": sha1},
             data=content.encode()
@@ -210,13 +186,13 @@ def upload(content, sha1, token_vercel):
     r.raise_for_status()
 
 
-def deploy(sha, size, token_vercel):
+def deploy(sha, size, tok):
         r = requests.post(
             f"https://api.vercel.com/v13/deployments?teamId={VERCEL_TEAM_ID}",
-            headers={"Authorization": f"Bearer {token_vercel}",
+            headers={"Authorization": f"Bearer {tok}",
                                       "Content-Type": "application/json"},
             json={"name": "dit-ssp25", "target": "production", "files": [
-                            {"file": "data.json",  "sha": sha,            "size": size},
+                            {"file": "data.json", "sha": sha, "size": size},
                             {"file": "index.html", "sha": INDEX_HTML_SHA, "size": INDEX_HTML_SIZE}
             ]}
 )
@@ -232,17 +208,15 @@ def tableau_signout(token):
 
 
 def main():
-        print("Fazendo login no Tableau Cloud...")
+        print("Login no Tableau Cloud...")
     tab_token, site_id = tableau_login()
     try:
                 print("Coletando dados das SSPs...")
-                j    = build_json(tab_token, site_id)
-                sha  = sha1_of(j)
+                j = build_json(tab_token, site_id)
+                sha = sha1_of(j)
                 size = len(j.encode())
-                print(f"JSON gerado: {size} bytes, SHA={sha[:12]}...")
-                print("Fazendo upload para Vercel...")
+                print(f"JSON: {size} bytes, SHA={sha[:12]}...")
                 upload(j, sha, VERCEL_TOKEN)
-                print("Criando deployment...")
                 deploy(sha, size, VERCEL_TOKEN)
                 print("Sucesso! https://dit-ssp25.vercel.app/")
 finally:
